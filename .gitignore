@@ -1,0 +1,7 @@
+# Ignore the Externals directory
+Externals/
+
+# Ignore the cmake-build-debug directory
+cmake-build-debug/
+
+.idea/
