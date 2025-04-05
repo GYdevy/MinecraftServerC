@@ -4,12 +4,15 @@
 #include <winsock2.h>
 
 #include "packet_utils.h"
+#include "server.h"
 #ifndef HANDSHAKE_H
 #define HANDSHAKE_H
-int handleHandshake(SOCKET clientSocket);
+
 int parsePacket(SOCKET clientSocket);
+
 void handle_ping_pong(SOCKET clientSocket);
-void close_ping_pong_connection(SOCKET clientSocket);
-void handshake(SOCKET clientSocket);
-Buffer build_status_response();
+
+void handshake(ClientSession *session, uint8_t *data, int length);
+
+void build_send_status_response(SOCKET clientSocket);
 #endif //HANDSHAKE_H

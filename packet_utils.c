@@ -1,9 +1,12 @@
 #include "packet_utils.h"
+
+#include <pthread_time.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "server.h"
 
 
 //TODO REFACTOR THIS SHIT
@@ -17,62 +20,51 @@ int write_varint(int value, unsigned char *buffer) {
     } while (value);
     return bytes_written;
 }
+
 // Function to encode a VarInt
 int write_varint_t(uint8_t *buffer, int value) {
     int len = 0;
     while (1) {
-        uint8_t byte = value & 0x7F;  // Extract lowest 7 bits
+        uint8_t byte = value & 0x7F; // Extract lowest 7 bits
         value >>= 7;
         if (value) {
-            byte |= 0x80;  // Set continuation bit
+            byte |= 0x80; // Set continuation bit
         }
-        buffer[len++] = byte;  // Store the byte
+        buffer[len++] = byte; // Store the byte
         if (!value) break;
     }
     return len;
 }
 
-
-
-int parseVarInt(const unsigned char *buffer, int *bytesRead) {
+int read_varint(uint8_t *buffer, int *offset) {
     int value = 0;
     int position = 0;
-    unsigned char currentByte;
+    uint8_t byte;
 
     do {
-        currentByte = buffer[position];
-        value |= (currentByte & 0x7F) << (position * 7);
+        byte = buffer[*offset];
+        value |= (byte & 0x7F) << (position * 7);
+        (*offset)++;
         position++;
+
         if (position > 5) {
-            printf("VarInt is too long!\n");
+            // A VarInt must not be more than 5 bytes
             return -1;
         }
-    } while ((currentByte & 0x80) != 0);
+    } while (byte & 0x80);
 
-    *bytesRead = position;
     return value;
 }
 
-void print_packet(const unsigned char *packet, int packet_size) {
-    printf("Packet Data (%d bytes): ", packet_size);
-    for (int i = 0; i < packet_size; i++) {
-        printf("%02X ", packet[i]);
+
+void buffer_init(Buffer *buffer, size_t initial_capacity) {
+    buffer->data = (uint8_t *) malloc(initial_capacity);
+    if (buffer->data == NULL) {
+        printf("[ERROR] Memory allocation failed for buffer data\n");
+        return;
     }
-    printf("\n");
-}
-
-int get_packetLength(SOCKET clientSocket) {
-    unsigned char packet_length_buffer[2]; // Buffer to hold packet length
-    int recv_bytes = recv(clientSocket, packet_length_buffer, 1, 0); // Read 1st byte (length)
-    int packet_length = packet_length_buffer[0];
-    return packet_length;
-}
-
-
-void buffer_init(Buffer *buf, size_t initial_capacity) {
-    buf->data = malloc(initial_capacity);
-    buf->size = 0;
-    buf->capacity = initial_capacity;
+    buffer->size = 0;
+    buffer->capacity = initial_capacity;
 }
 
 void buffer_append(Buffer *buf, const void *data, size_t data_size) {
@@ -96,6 +88,35 @@ void buffer_free(Buffer *buf) {
     buf->size = buf->capacity = 0;
 }
 
+void buffer_to_sendbuffer(ClientSession *session, Buffer *buffer) {
+    if (buffer->size > sizeof(session->sendBuffer)) {
+        printf("[ERROR] Buffer size exceeds sendBuffer capacity\n");
+        return;
+    }
+
+    // Copy the data from the Buffer to the sendBuffer
+    memcpy(session->sendBuffer, buffer->data, buffer->size);
+
+    // Update session's sendLength and reset sendOffset
+    session->sendLength = buffer->size;
+    session->sendOffset = 0;
+}
+
+// Append a big-endian value to a buffer
+void buffer_append_be(Buffer *buffer, const void *value, size_t size) {
+    uint8_t temp[8]; // Maximum size needed for double (8 bytes)
+    memcpy(temp, value, size); // Copy raw bytes
+
+    // Reverse bytes if size > 1 (needed for big-endian conversion)
+    for (size_t i = 0; i < size / 2; i++) {
+        uint8_t swap = temp[i];
+        temp[i] = temp[size - 1 - i];
+        temp[size - 1 - i] = swap;
+    }
+
+    buffer_append(buffer, temp, size);
+}
+
 void write_varInt_buffer(Buffer *buffer, int value) {
     uint8_t byte;
     while (1) {
@@ -109,4 +130,32 @@ void write_varInt_buffer(Buffer *buffer, int value) {
             break;
         }
     }
+}
+
+// Align the buffer size to the given alignment
+void buffer_align(Buffer *buffer, size_t alignment) {
+    if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
+        // Make sure alignment is a power of 2
+        printf("Error: Alignment must be a power of 2.\n");
+        return;
+    }
+
+    // Calculate the next aligned address
+    size_t alignment_offset = (alignment - (buffer->size % alignment)) % alignment;
+    if (alignment_offset > 0) {
+        // If alignment offset is non-zero, we need to pad the buffer
+        size_t new_capacity = buffer->capacity + alignment_offset;
+        buffer->data = realloc(buffer->data, new_capacity); // Resize buffer if needed
+        buffer->capacity = new_capacity;
+
+        // Move the current data to the new aligned position
+        memmove(buffer->data + alignment_offset, buffer->data, buffer->size);
+        buffer->size += alignment_offset; // Update the size after padding
+    }
+}
+
+uint64_t getCurrentTimeMillis() {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (uint64_t) (ts.tv_sec) * 1000 + (ts.tv_nsec / 1000000);
 }

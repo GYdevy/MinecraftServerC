@@ -1,25 +1,13 @@
 #include "socket_utils.h"
-#include "handshake.h"
-#include "packet_utils.h"
-#include <stdio.h>
-
-#define PORT 25565
+#include "server.h"
 
 int main() {
     if (initializeWinSock() != 0) return 1;
 
-    SOCKET serverSocket = createServerSocket();
+    SOCKET serverSocket = initializeServer();
     if (serverSocket == INVALID_SOCKET) return 1;
 
-    startListening(serverSocket);
-    printf("Server listening on port %d\n", PORT);
-
-    while (1) {
-        SOCKET clientSocket = acceptClient(serverSocket);
-        if (clientSocket != INVALID_SOCKET) {
-            handshake(clientSocket);
-        }
-    }
+    runServerLoop(serverSocket);
 
     cleanup(serverSocket);
     return 0;

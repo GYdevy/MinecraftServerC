@@ -3,7 +3,7 @@
 #include <ws2tcpip.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define PORT 25565
+#define PORT 61243
 #pragma comment(lib, "ws2_32.lib")
 
 int initializeWinSock() {
@@ -13,6 +13,14 @@ int initializeWinSock() {
         return 1;
     }
     return 0;
+}
+
+SOCKET initializeServer() {
+    SOCKET serverSocket = createServerSocket();
+    if (serverSocket == INVALID_SOCKET) return INVALID_SOCKET;
+    startListening(serverSocket);
+    printf("Server listening on port %d\n", PORT);
+    return serverSocket;
 }
 
 SOCKET createServerSocket() {
@@ -28,7 +36,7 @@ SOCKET createServerSocket() {
     serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(PORT);
 
-    if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+    if (bind(serverSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
         printf("Bind failed with error: %d\n", WSAGetLastError());
         closesocket(serverSocket);
         WSACleanup();
@@ -50,7 +58,7 @@ void startListening(SOCKET serverSocket) {
 SOCKET acceptClient(SOCKET serverSocket) {
     struct sockaddr_in clientAddr;
     int addrLen = sizeof(clientAddr);
-    SOCKET clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrLen);
+    SOCKET clientSocket = accept(serverSocket, (struct sockaddr *) &clientAddr, &addrLen);
 
     if (clientSocket == INVALID_SOCKET) {
         printf("Accept failed with error: %d\n", WSAGetLastError());

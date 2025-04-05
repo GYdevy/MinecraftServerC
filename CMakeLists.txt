@@ -24,6 +24,8 @@ add_executable(server
         extract_uuid.h
         play.c
         play.h
+        server.c
+        server.h
 )
 
 # Specify the location of libnbt include directory
