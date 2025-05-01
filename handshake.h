@@ -1,18 +1,24 @@
 //
 // Created by gyank on 30/01/2025.
 //
-#include <winsock2.h>
 
-#include "packet_utils.h"
-#include "server.h"
 #ifndef HANDSHAKE_H
 #define HANDSHAKE_H
 
-int parsePacket(SOCKET clientSocket);
+#include <stdint.h>
+#include <sys/socket.h>   
+#include <netinet/in.h>    
 
-void handle_ping_pong(SOCKET clientSocket);
+#include "server.h"
+#include "packet_utils.h"
+
+
+int parsePacket(int clientSocket);
+
+void handle_ping_pong(int clientSocket);
 
 void handshake(ClientSession *session, uint8_t *data, int length);
 
-void build_send_status_response(SOCKET clientSocket);
-#endif //HANDSHAKE_H
+void build_send_status_response(int clientSocket);
+
+#endif // HANDSHAKE_H

@@ -2,14 +2,9 @@
 #include "packet_utils.h"
 #include "socket_utils.h"
 #include <stdio.h>
+#include <string.h>
 #include "login.h"
 #include "server.h"
-
-
-#include "handshake.h"
-#include "packet_utils.h"
-#include <stdio.h>
-#include <string.h>
 
 void handshake(ClientSession *session, uint8_t *data, int length) {
     int offset = 1;
@@ -30,7 +25,6 @@ void handshake(ClientSession *session, uint8_t *data, int length) {
 
     int nextState = read_varint(data, &offset);
 
-
     if (nextState == 1) {
         session->state = STATE_STATUS;
     } else if (nextState == 2) {
@@ -40,15 +34,13 @@ void handshake(ClientSession *session, uint8_t *data, int length) {
     }
 }
 
-
-int parsePacket(SOCKET clientSocket) {
+int parsePacket(int clientSocket) {
     char buffer[512];
     int bytesReceived = 0;
 
-
     unsigned char packetSize;
 
-    bytesReceived = recv(clientSocket, (char *) &packetSize, 1, 0);
+    bytesReceived = recv(clientSocket, (char *)&packetSize, 1, 0);
     if (bytesReceived <= 0) {
         printf("Error reading packet size or connection closed.\n");
         return -1;
@@ -70,14 +62,12 @@ int parsePacket(SOCKET clientSocket) {
         totalReceived += bytesReceived;
     }
 
-
     return 0;
 }
 
-void handle_ping_pong(SOCKET clientSocket) {
+void handle_ping_pong(int clientSocket) {
     unsigned char ping_packet[12]; // Allocate buffer correctly
     int recv_bytes = recv(clientSocket, ping_packet, sizeof(ping_packet), 0);
-
 
     if (recv_bytes > 0) {
         Buffer buffer_ping_packet;
@@ -91,13 +81,12 @@ void handle_ping_pong(SOCKET clientSocket) {
         buffer_append(&buffer_ping_packet, ping_content, 8);
 
         send(clientSocket, buffer_ping_packet.data, 10, 0);
-        closesocket(clientSocket);
+        close(clientSocket); // On Linux, use `close` instead of `closesocket`
     }
 }
 
-//status response data when client refreshes server list.
-//should be dynamic?
-void build_send_status_response(SOCKET clientSocket) {
+// status response data when client refreshes server list.
+void build_send_status_response(int clientSocket) {
     const char *json_string =
             "{"
             "\"version\":{\"name\":\"1.15.2\",\"protocol\":578},"
@@ -105,7 +94,6 @@ void build_send_status_response(SOCKET clientSocket) {
             "{\"name\":\"\",\"id\":\"4566e69f-c907-48ee-8d71-d7ba5aa00d20\"}"
             "]},"
             "\"description\":{\"text\":\"A Minecraft Server!\"},"
-            ""
             "\"enforcesSecureChat\":false"
             "}";
 
@@ -135,9 +123,9 @@ void build_send_status_response(SOCKET clientSocket) {
     buffer_free(&json_length_buffer);
     buffer_free(&total_length_buffer);
 
-    // Send using WSAPoll
+    // Send using poll()
     struct pollfd pfd = {.fd = clientSocket, .events = POLLOUT};
-    int poll_result = WSAPoll(&pfd, 1, 1000); // Timeout = 1000ms
+    int poll_result = poll(&pfd, 1, 1000); // Timeout = 1000ms
 
     if (poll_result > 0 && (pfd.revents & POLLOUT)) {
         send(clientSocket, (char *) buffer.data, buffer.size, 0);

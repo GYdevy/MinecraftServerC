@@ -1,8 +1,7 @@
 #include "extract_uuid.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <winsock2.h>
-
+#include <string.h>
 #include "packet_utils.h"
 #include "curl/curl.h"
 #define SERVER "https://api.mojang.com"
@@ -50,7 +49,7 @@ char *get_uuid(const char *username) {
     }
 
 
-    char *uuid = nullptr;
+    char *uuid = NULL;
 
     if (strlen(response) > 12) {
         uuid = malloc(37);

@@ -6,15 +6,16 @@
 #include <stdint.h>
 #include "login.h"
 #include "play.h"
-
+#include <unistd.h>  // For close()
+#include <poll.h>    // For poll()
+#include <string.h>
 #define PORT 61243
 #define TIMEOUT 100  // Poll indefinitely
 #define KEEP_ALIVE_INTERVAL 15000
 
-
 void removeClient(struct pollfd fds[], ClientSession sessions[], int *nfds, int index) {
     printf("[INFO] Removing client %d\n", fds[index].fd);
-    closesocket(fds[index].fd);
+    close(fds[index].fd);
 
     if (index < *nfds - 1) {
         fds[index] = fds[*nfds - 1];
@@ -23,10 +24,9 @@ void removeClient(struct pollfd fds[], ClientSession sessions[], int *nfds, int 
     (*nfds)--;
 }
 
-
-void handleNewConnection(SOCKET serverSocket, struct pollfd fds[], ClientSession sessions[], int *nfds) {
-    SOCKET clientSocket = acceptClient(serverSocket);
-    if (clientSocket == INVALID_SOCKET) return;
+void handleNewConnection(int serverSocket, struct pollfd fds[], ClientSession sessions[], int *nfds) {
+    int clientSocket = acceptClient(serverSocket);
+    if (clientSocket == -1) return;
 
     if (*nfds < MAX_CLIENTS + 1) {
         fds[*nfds].fd = clientSocket;
@@ -35,10 +35,9 @@ void handleNewConnection(SOCKET serverSocket, struct pollfd fds[], ClientSession
         (*nfds)++;
     } else {
         printf("Server full. Rejecting connection.\n");
-        closesocket(clientSocket);
+        close(clientSocket);
     }
 }
-
 
 void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
     // Read packet ID
@@ -50,7 +49,6 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
     // Process the packet based on the packet ID and session state
     switch (session->state) {
         case STATE_HANDSHAKE:
-
             if (packetId == 0x00) {
                 printf("[INFO] Handshake packet received.\n");
                 handshake(session, packet, packetLength);
@@ -85,7 +83,6 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
         case STATE_PLAY:
             // Handle play packets
             handle_play_state(session, packetId, packet, packetLength);
-
             break;
 
         default:
@@ -94,12 +91,11 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
     }
 }
 
-
 int handleClientData(ClientSession *session) {
-    int bytesRead = recv(session->socket, (char *) (session->buffer + session->bufferOffset),
+    int bytesRead = recv(session->socket, (char *)(session->buffer + session->bufferOffset),
                          BUFFER_SIZE - session->bufferOffset, 0);
 
-    if (bytesRead <= 0) return 1; // Client disconnected or error
+    if (bytesRead <= 0) return 1;  // Client disconnected or error
 
     session->bufferOffset += bytesRead;
 
@@ -111,7 +107,6 @@ int handleClientData(ClientSession *session) {
     }
     printf("\n");
 
-    // Keep processing while there's data in the buffer
     while (session->bufferOffset > 0) {
         int offset = 0;
 
@@ -121,7 +116,6 @@ int handleClientData(ClientSession *session) {
             printf("[ERROR] Invalid packet length\n");
             return 1;
         }
-
 
         // Ensure we have enough data for the current packet
         if (packetLength + offset > session->bufferOffset) {
@@ -138,10 +132,8 @@ int handleClientData(ClientSession *session) {
         printf("[DEBUG] Processing packet at offset %d, length %d\n", offset, packetLength);
         processPacket(session, packetBuffer, packetLength);
 
-        // Shift the remaining buffer to remove the processed packet
         int remainingBytes = session->bufferOffset - (offset + packetLength);
         if (remainingBytes > 0) {
-            // Move the remaining data to the start of the buffer
             memmove(session->buffer, session->buffer + (offset + packetLength), remainingBytes);
             session->bufferOffset = remainingBytes;
             printf("[DEBUG] Moved %d remaining bytes to start of buffer\n", remainingBytes);
@@ -152,7 +144,6 @@ int handleClientData(ClientSession *session) {
 
     return session->shouldClose ? 1 : 0;
 }
-
 
 void handleClientCommunication(struct pollfd fds[], ClientSession sessions[], int *nfds) {
     for (int i = 1; i < *nfds; i++) {
@@ -179,7 +170,7 @@ void handleClientCommunication(struct pollfd fds[], ClientSession sessions[], in
     }
 }
 
-void runServerLoop(SOCKET serverSocket) {
+void runServerLoop(int serverSocket) {
     struct pollfd fds[MAX_CLIENTS + 1] = {{.fd = serverSocket, .events = POLLIN}};
     ClientSession sessions[MAX_CLIENTS] = {0};
     int nfds = 1;
@@ -188,17 +179,13 @@ void runServerLoop(SOCKET serverSocket) {
 
     while (1) {
         uint64_t now = getCurrentTimeMillis();
-        //20 ticks per second
         if (now - lastTickTime >= 50) {
-            // Run game logic (ticks)
             for (int i = 1; i < nfds; i++) {
-                //TODO work on this, movement, position.
-                //update_game_tick(&sessions[i-1]);
+                // Handle game logic
             }
             lastTickTime = now;
         }
 
-        // Handle other tasks like keep-alive
         if (now - lastKeepAlive >= KEEP_ALIVE_INTERVAL) {
             for (int i = 1; i < nfds; i++) {
                 send_keep_alive(&sessions[i - 1], &fds[i]);
@@ -206,38 +193,31 @@ void runServerLoop(SOCKET serverSocket) {
             lastKeepAlive = now;
         }
 
-        // Handle new connections
         if (fds[0].revents & POLLIN) {
             handleNewConnection(serverSocket, fds, sessions, &nfds);
         }
 
-        // Handle client communication (receive and send data)
         handleClientCommunication(fds, sessions, &nfds);
 
-        // Poll the clients and handle their events
-        if (WSAPoll(fds, nfds, TIMEOUT) < 0) break;
+        if (poll(fds, nfds, TIMEOUT) < 0) break;
     }
 }
 
 void sendPacket(ClientSession *session) {
-    if (session->sendLength <= 0) {
-        return; // No data to send
-    }
+    if (session->sendLength <= 0) return;
 
-    // Send data in chunks as required
-    int bytesSent = send(session->socket, (char *) (session->sendBuffer + session->sendOffset),
+    int bytesSent = send(session->socket, (char *)(session->sendBuffer + session->sendOffset),
                          session->sendLength - session->sendOffset, 0);
 
     if (bytesSent <= 0) {
         printf("[ERROR] Sending failed, closing client\n");
-        session->shouldClose = 1; // Mark for removal if sending failed
+        session->shouldClose = 1;
         return;
     }
 
     session->sendOffset += bytesSent;
 
     if (session->sendOffset >= session->sendLength) {
-        // Reset buffer after sending all data
         session->sendOffset = 0;
         session->sendLength = 0;
     }

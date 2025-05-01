@@ -1,34 +1,30 @@
 #include "socket_utils.h"
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>  // For close()
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #define PORT 61243
-#pragma comment(lib, "ws2_32.lib")
 
-int initializeWinSock() {
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        printf("WSAStartup failed with error: %d\n", WSAGetLastError());
-        return 1;
-    }
-    return 0;
-}
-
-SOCKET initializeServer() {
-    SOCKET serverSocket = createServerSocket();
-    if (serverSocket == INVALID_SOCKET) return INVALID_SOCKET;
+// Function to initialize the server
+int initializeServer() {
+    int serverSocket = createServerSocket();
+    if (serverSocket == -1) return -1;
     startListening(serverSocket);
     printf("Server listening on port %d\n", PORT);
     return serverSocket;
 }
 
-SOCKET createServerSocket() {
-    SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (serverSocket == INVALID_SOCKET) {
-        printf("Socket creation failed with error: %d\n", WSAGetLastError());
-        WSACleanup();
-        return INVALID_SOCKET;
+// Function to create the server socket
+int createServerSocket() {
+    // Create the server socket using the POSIX socket API
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket == -1) {
+        perror("Socket creation failed");
+        return -1;
     }
 
     struct sockaddr_in serverAddr = {0};
@@ -36,32 +32,33 @@ SOCKET createServerSocket() {
     serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(PORT);
 
-    if (bind(serverSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        printf("Bind failed with error: %d\n", WSAGetLastError());
-        closesocket(serverSocket);
-        WSACleanup();
-        return INVALID_SOCKET;
+    // Bind the socket to the address
+    if (bind(serverSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) == -1) {
+        perror("Bind failed");
+        close(serverSocket);
+        return -1;
     }
 
     return serverSocket;
 }
 
-void startListening(SOCKET serverSocket) {
-    if (listen(serverSocket, SOMAXCONN) == SOCKET_ERROR) {
-        printf("Listen failed with error: %d\n", WSAGetLastError());
-        closesocket(serverSocket);
-        WSACleanup();
+// Function to start listening for client connections
+void startListening(int serverSocket) {
+    if (listen(serverSocket, SOMAXCONN) == -1) {
+        perror("Listen failed");
+        close(serverSocket);
         exit(1);
     }
 }
 
-SOCKET acceptClient(SOCKET serverSocket) {
+// Function to accept client connections
+int acceptClient(int serverSocket) {
     struct sockaddr_in clientAddr;
-    int addrLen = sizeof(clientAddr);
-    SOCKET clientSocket = accept(serverSocket, (struct sockaddr *) &clientAddr, &addrLen);
+    socklen_t addrLen = sizeof(clientAddr);
+    int clientSocket = accept(serverSocket, (struct sockaddr *) &clientAddr, &addrLen);
 
-    if (clientSocket == INVALID_SOCKET) {
-        printf("Accept failed with error: %d\n", WSAGetLastError());
+    if (clientSocket == -1) {
+        perror("Accept failed");
     } else {
         printf("Client connected\n");
     }
@@ -69,7 +66,7 @@ SOCKET acceptClient(SOCKET serverSocket) {
     return clientSocket;
 }
 
-void cleanup(SOCKET serverSocket) {
-    closesocket(serverSocket);
-    WSACleanup();
+// Cleanup function
+void cleanup(int serverSocket) {
+    close(serverSocket);
 }

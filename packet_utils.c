@@ -1,6 +1,6 @@
 #include "packet_utils.h"
 
-#include <pthread_time.h>
+#include <time.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

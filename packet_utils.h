@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include <winsock2.h>
+#include <stddef.h>  // <-- Add this line to include size_t
 
 #include "server.h"
 
@@ -34,4 +34,5 @@ void buffer_to_sendbuffer(ClientSession *session, Buffer *buffer);
 void buffer_append_be(Buffer *buffer, const void *value, size_t size);
 
 void buffer_align(Buffer *buffer, size_t alignment);
+
 #endif

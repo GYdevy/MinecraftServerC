@@ -8,10 +8,10 @@
 #include "play.h"
 
 //TODO refactor whole file
-void handle_login(SOCKET clientSocket, uint8_t *packet) {
+void handle_login(int clientSocket, uint8_t *packet) {
     int response_length;
-    char *uuid = nullptr;
-    char *username = nullptr;
+    char *uuid = NULL; // Use NULL for uninitialized pointers in C
+    char *username = NULL; // Use NULL for uninitialized pointers in C
     extract_username_and_uuid(packet, &username, &uuid);
     char *formatted_uuid = get_formatted_uuid(uuid);
     unsigned char *response = create_login_response_data(username, formatted_uuid, &response_length);
@@ -22,7 +22,7 @@ void handle_login(SOCKET clientSocket, uint8_t *packet) {
     }
 }
 
-void send_login_success(SOCKET clientSocket, const char *uuid, const char *username) {
+void send_login_success(int clientSocket, const char *uuid, const char *username) {
     Buffer response;
     buffer_init(&response, 64);
 
@@ -47,7 +47,6 @@ void send_login_success(SOCKET clientSocket, const char *uuid, const char *usern
 
     buffer_free(&response);
 }
-
 
 unsigned char *create_login_response_data(const char *username, const char *uuid, int *total_length) {
     if (!username || !uuid || !total_length) return NULL;
@@ -74,10 +73,8 @@ unsigned char *create_login_response_data(const char *username, const char *uuid
         return NULL; // Memory allocation failed
     }
 
-
     return response;
 }
-
 
 int extract_username_and_uuid(unsigned char *packet, unsigned char **username, unsigned char **uuid) {
     int username_length = packet[1];
@@ -103,14 +100,13 @@ int extract_username_and_uuid(unsigned char *packet, unsigned char **username, u
     return username_length; // Return the username length
 }
 
-//useless shit to refactor
+// Calculating the payload length (could be a helper for constructing responses)
 int calculate_payload_length(int username_length, int prefixed_array_length, unsigned char *buffer) {
     int username_length_size = write_varint(username_length, buffer);
 
     // Compute payload length (including UUID, username length, username, and prefixed array)
     return 16 + username_length_size + username_length + prefixed_array_length;
 }
-
 
 void prepend_packet_length(Buffer *buf) {
     uint8_t varint[5];

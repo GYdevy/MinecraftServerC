@@ -2,10 +2,8 @@
 #include "server.h"
 
 int main() {
-    if (initializeWinSock() != 0) return 1;
-
-    SOCKET serverSocket = initializeServer();
-    if (serverSocket == INVALID_SOCKET) return 1;
+    int serverSocket = initializeServer();
+    if (serverSocket == -1) return 1;
 
     runServerLoop(serverSocket);
 

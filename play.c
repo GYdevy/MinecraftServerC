@@ -1,23 +1,23 @@
 #include "play.h"
-
 #include <stdio.h>
-
 #include "login.h"
 #include "packet_utils.h"
 #include "server.h"
+#include <unistd.h> // For sleep function in Linux
+
 #define HEIGHTMAP_SIZE 36
 
-void join_game(SOCKET clientSocket) {
+void join_game(int clientSocket) {
     Buffer join_packet;
     buffer_init(&join_packet, 256);
 
     uint8_t packet_id = 0x26; // Packet ID
-    int ent_id = 214; // random ahh number
+    int ent_id = 214; // random number
     uint8_t gamemode = 1; // creative
     int dim = 0; // overworld
-    long hash = 1234567890; // random ahh not sure what to do with it
+    long hash = 1234567890; // random number for hash
     uint8_t max = 5; // ignored
-    char ltype = 0; // string enum? default
+    char ltype = 0; // default
     int viewD = 0x2; // view distance
     bool debug = 0; // Debug flag
     bool res = 1; // Result flag
@@ -38,14 +38,14 @@ void join_game(SOCKET clientSocket) {
 
     send(clientSocket, join_packet.data, join_packet.size, 0);
 
-
     buffer_free(&join_packet);
     player_pos_look(clientSocket);
 }
 
-//Basic stone platform chunk packet.
-void send_stone_platform_chunk(SOCKET socket) {
-    Sleep(500);
+// Basic stone platform chunk packet.
+void send_stone_platform_chunk(int socket) {
+    usleep(500000); // Sleep for 500 milliseconds (Linux equivalent of Sleep)
+
     Buffer chunkPacket;
     buffer_init(&chunkPacket, 4096);
 
@@ -54,21 +54,20 @@ void send_stone_platform_chunk(SOCKET socket) {
     bool full_chunk = 1;
     int bit_mask = 1;
 
-
-    //Packet ID
+    // Packet ID
     write_varInt_buffer(&chunkPacket, 0x22); // VarInt for packet ID 0x22
 
-    //Chunk Coordinates
+    // Chunk Coordinates
     buffer_append(&chunkPacket, &chunkX, sizeof(int32_t));
     buffer_append(&chunkPacket, &chunkZ, sizeof(int32_t));
 
-    //Full Chunk
+    // Full Chunk
     write_varInt_buffer(&chunkPacket, full_chunk);
 
-    //Primary Bit Mask
+    // Primary Bit Mask
     write_varInt_buffer(&chunkPacket, bit_mask);
 
-    //Heightmaps
+    // Heightmaps
     uint8_t tag_compound = 0x0A; // TAG_Compound
     buffer_append(&chunkPacket, &tag_compound, 1);
 
@@ -93,13 +92,11 @@ void send_stone_platform_chunk(SOCKET socket) {
     uint8_t tag_end = 0;
     buffer_append(&chunkPacket, &tag_end, 1);
 
-
     // Biomes (1024 * int32_t)
     uint32_t biome_id = htonl(1); // Plains biome
     for (int i = 0; i < 1024; i++) {
         buffer_append(&chunkPacket, &biome_id, sizeof(uint32_t));
     }
-
 
     // Chunk Section Data
     Buffer section;
@@ -112,7 +109,6 @@ void send_stone_platform_chunk(SOCKET socket) {
     // Define palette for stone (ID 1)
     uint32_t stone_block_id = 1; // Stone block ID
     buffer_append(&section, &stone_block_id, sizeof(uint32_t)); // Stone palette entry
-
 
     write_varInt_buffer(&section, 4096); // Number of blocks
     write_varInt_buffer(&section, 512); // Number of long values in section (ceil(4096 * 8 / 64))
@@ -129,19 +125,16 @@ void send_stone_platform_chunk(SOCKET socket) {
     write_varInt_buffer(&chunkPacket, section.size);
     buffer_append(&chunkPacket, section.data, section.size);
 
-
-    //Empty block entities
+    // Empty block entities
     write_varInt_buffer(&chunkPacket, 0);
 
     prepend_packet_length(&chunkPacket);
 
-
     send(socket, chunkPacket.data, chunkPacket.size, 0);
 }
 
-
-//this should be a dynamic packet with x,y,z coords
-void player_pos_look(SOCKET clientSocket) {
+// This should be a dynamic packet with x, y, z coords
+void player_pos_look(int clientSocket) {
     Buffer player_poslook_packet;
     buffer_init(&player_poslook_packet, 512);
 
@@ -164,12 +157,12 @@ void player_pos_look(SOCKET clientSocket) {
     prepend_packet_length(&player_poslook_packet);
     send(clientSocket, player_poslook_packet.data, player_poslook_packet.size, 0);
     buffer_free(&player_poslook_packet);
+
     send_stone_platform_chunk(clientSocket);
 }
 
-
 void send_keep_alive(ClientSession *session, struct pollfd *fd) {
-    if (!session || session->socket == INVALID_SOCKET) return;
+    if (!session || session->socket == -1) return; //Invalid socket
     Buffer keepalive_packet;
     buffer_init(&keepalive_packet, 64);
     uint8_t packet_id = 0x21;
@@ -191,23 +184,27 @@ void send_keep_alive(ClientSession *session, struct pollfd *fd) {
     buffer_free(&keepalive_packet);
 }
 
-//TODO handle with update game tick
 void handle_play_state(ClientSession *session, int packet_id, uint8_t *packet, int packet_length) {
     switch (packet_id) {
         case 0x05: {
-            printf("RECEIVED CLIENT SETTINGS\n"); //IDK what to do with it yet
+            printf("RECEIVED CLIENT SETTINGS\n");
+            break;
         }
         case 0x0B: {
             printf("RECEIVED CLIENT PLUGIN MESSAGE\n");
+            break;
         }
         case 0x00: {
             printf("RECEIVED CLIENT TELEPORT CONFIRM\n");
+            break;
         }
         case 0x0F: {
             printf("KEEP ALIVE RECEIVED\n");
+            break;
         }
         case 0x22: {
             printf("RECEIVED PLAYER LOOK AND POS\n");
+            break;
         }
     }
 }
