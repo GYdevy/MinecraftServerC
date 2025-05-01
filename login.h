@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include "packet_utils.h"
 
-// Forward declarations of functions
 void handle_login(int clientSocket, uint8_t *packet);
 void send_login_success(int clientSocket, const char *uuid, const char *username);
 unsigned char *create_login_response_data(const char *username, const char *uuid, int *total_length);

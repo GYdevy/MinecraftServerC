@@ -72,7 +72,7 @@ void handle_ping_pong(int clientSocket) {
     if (recv_bytes > 0) {
         Buffer buffer_ping_packet;
         buffer_init(&buffer_ping_packet, 11);
-        // Construct the pong response
+       
 
         uint8_t length_and_id[] = {0x09, 0x01};
         buffer_append(&buffer_ping_packet, length_and_id, 2);
@@ -81,11 +81,12 @@ void handle_ping_pong(int clientSocket) {
         buffer_append(&buffer_ping_packet, ping_content, 8);
 
         send(clientSocket, buffer_ping_packet.data, 10, 0);
-        close(clientSocket); // On Linux, use `close` instead of `closesocket`
+        close(clientSocket); 
     }
 }
 
 // status response data when client refreshes server list.
+//written stupidly, should be made to extract current state and send to client.
 void build_send_status_response(int clientSocket) {
     const char *json_string =
             "{"
@@ -100,7 +101,6 @@ void build_send_status_response(int clientSocket) {
     Buffer buffer;
     buffer_init(&buffer, 256);
 
-    // Calculate JSON length
     int json_length = strlen(json_string);
 
     // Create buffers for lengths
@@ -123,7 +123,6 @@ void build_send_status_response(int clientSocket) {
     buffer_free(&json_length_buffer);
     buffer_free(&total_length_buffer);
 
-    // Send using poll()
     struct pollfd pfd = {.fd = clientSocket, .events = POLLOUT};
     int poll_result = poll(&pfd, 1, 1000); // Timeout = 1000ms
 
