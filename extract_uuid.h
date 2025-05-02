@@ -1,6 +1,3 @@
-//
-// Created by gyank on 15/02/2025.
-//
 
 #ifndef EXTRACT_UUID_H
 #define EXTRACT_UUID_H

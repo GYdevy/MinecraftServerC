@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "server.h"
-#include <linux/time.h>
+#include <sys/time.h>
 
 
 //TODO REFACTOR THIS SHIT

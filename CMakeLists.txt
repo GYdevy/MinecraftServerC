@@ -11,7 +11,6 @@ add_executable(server
     ${CMAKE_SOURCE_DIR}/packet_utils.c
     ${CMAKE_SOURCE_DIR}/handshake.c
     ${CMAKE_SOURCE_DIR}/login.c
-    ${CMAKE_SOURCE_DIR}/Externals/cJSON.c
     ${CMAKE_SOURCE_DIR}/extract_uuid.c
     ${CMAKE_SOURCE_DIR}/play.c
     ${CMAKE_SOURCE_DIR}/server.c

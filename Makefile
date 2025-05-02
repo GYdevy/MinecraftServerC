@@ -129,29 +129,6 @@ server/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
 .PHONY : server/fast
 
-Externals/cJSON.o: Externals/cJSON.c.o
-.PHONY : Externals/cJSON.o
-
-# target to build an object file
-Externals/cJSON.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/Externals/cJSON.c.o
-.PHONY : Externals/cJSON.c.o
-
-Externals/cJSON.i: Externals/cJSON.c.i
-.PHONY : Externals/cJSON.i
-
-# target to preprocess a source file
-Externals/cJSON.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/Externals/cJSON.c.i
-.PHONY : Externals/cJSON.c.i
-
-Externals/cJSON.s: Externals/cJSON.c.s
-.PHONY : Externals/cJSON.s
-
-# target to generate assembly for a file
-Externals/cJSON.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/Externals/cJSON.c.s
-.PHONY : Externals/cJSON.c.s
 
 extract_uuid.o: extract_uuid.c.o
 .PHONY : extract_uuid.o
@@ -354,9 +331,6 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... server"
-	@echo "... Externals/cJSON.o"
-	@echo "... Externals/cJSON.i"
-	@echo "... Externals/cJSON.s"
 	@echo "... extract_uuid.o"
 	@echo "... extract_uuid.i"
 	@echo "... extract_uuid.s"
