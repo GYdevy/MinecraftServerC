@@ -27,6 +27,14 @@ int createServerSocket() {
         return -1;
     }
 
+
+    int opt = 1;
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) { //reuse of port, easy testing.
+        perror("setsockopt failed");
+        close(serverSocket);
+        return -1;
+    }
+
     struct sockaddr_in serverAddr = {0};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;

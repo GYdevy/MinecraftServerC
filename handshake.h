@@ -1,6 +1,4 @@
-//
-// Created by gyank on 30/01/2025.
-//
+
 
 #ifndef HANDSHAKE_H
 #define HANDSHAKE_H

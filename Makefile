@@ -129,7 +129,6 @@ server/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
 .PHONY : server/fast
 
-
 extract_uuid.o: extract_uuid.c.o
 .PHONY : extract_uuid.o
 

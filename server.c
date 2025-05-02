@@ -44,7 +44,7 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
     int offset = 0;
     int packetId = read_varint(packet, &offset);
 
-    printf("[INFO] Processing packet, ID: %d, Length: %d\n", packetId, packetLength);
+    //printf("[INFO] Processing packet, ID: %d, Length: %d\n", packetId, packetLength);
 
     // Process the packet based on the packet ID and session state
     switch (session->state) {
@@ -73,7 +73,7 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
             // Handle login packets
             if (packetId == 0x00) {
                 printf("[INFO] Login packet received.\n");
-                handle_login(session->socket, packet);
+                handle_login(session, packet);
                 session->state = STATE_PLAY;
             } else {
                 printf("[WARN] Unexpected packet ID %d in Login state.\n", packetId);
@@ -100,12 +100,12 @@ int handleClientData(ClientSession *session) {
     session->bufferOffset += bytesRead;
 
     // Debug: Show buffer contents
-    printf("[DEBUG] Received %d bytes, total buffer size: %d\n", bytesRead, session->bufferOffset);
+    /*printf("[DEBUG] Received %d bytes, total buffer size: %d\n", bytesRead, session->bufferOffset);
     printf("[DEBUG] Buffer contents: ");
     for (int i = 0; i < session->bufferOffset; i++) {
         printf("%02X ", session->buffer[i]);
     }
-    printf("\n");
+    printf("\n");*/
 
     while (session->bufferOffset > 0) {
         int offset = 0;

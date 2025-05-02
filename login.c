@@ -8,21 +8,24 @@
 #include "play.h"
 
 //TODO refactor whole file
-void handle_login(int clientSocket, uint8_t *packet) {
+void handle_login(ClientSession *session, uint8_t *packet) {
     int response_length;
     char *uuid = NULL; // Use NULL for uninitialized pointers in C
     char *username = NULL; // Use NULL for uninitialized pointers in C
     extract_username_and_uuid(packet, &username, &uuid);
+    strncpy(session->username, username, sizeof(session->username) - 1);
+    session->username[sizeof(session->username) - 1] = '\0';
+
     char *formatted_uuid = get_formatted_uuid(uuid);
     unsigned char *response = create_login_response_data(username, formatted_uuid, &response_length);
     if (response) {
-        send_login_success(clientSocket, formatted_uuid, username);
-        join_game(clientSocket);
+        send_login_success(session, formatted_uuid, username);
+        join_game(session);
         free(response);
     }
 }
 
-void send_login_success(int clientSocket, const char *uuid, const char *username) {
+void send_login_success(ClientSession *session, const char *uuid, const char *username) {
     Buffer response;
     buffer_init(&response, 64);
 
@@ -43,7 +46,7 @@ void send_login_success(int clientSocket, const char *uuid, const char *username
 
     prepend_packet_length(&response);
 
-    send(clientSocket, response.data, response.size, 0);
+    send(session->socket, response.data, response.size, 0);
 
     buffer_free(&response);
 }

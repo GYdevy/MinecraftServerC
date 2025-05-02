@@ -7,7 +7,7 @@
 
 #define HEIGHTMAP_SIZE 36
 
-void join_game(int clientSocket) {
+void join_game(ClientSession *session) {
     Buffer join_packet;
     buffer_init(&join_packet, 256);
 
@@ -36,14 +36,14 @@ void join_game(int clientSocket) {
 
     prepend_packet_length(&join_packet);
 
-    send(clientSocket, join_packet.data, join_packet.size, 0);
+    send(session->socket, join_packet.data, join_packet.size, 0);
 
     buffer_free(&join_packet);
-    player_pos_look(clientSocket);
+    player_pos_look(session);
 }
 
 // Basic stone platform chunk packet.
-void send_stone_platform_chunk(int socket) {
+void send_stone_platform_chunk(ClientSession *session) {
     usleep(500000); // Sleep for 500 milliseconds (Linux equivalent of Sleep)
 
     Buffer chunkPacket;
@@ -130,11 +130,11 @@ void send_stone_platform_chunk(int socket) {
 
     prepend_packet_length(&chunkPacket);
 
-    send(socket, chunkPacket.data, chunkPacket.size, 0);
+    send(session->socket, chunkPacket.data, chunkPacket.size, 0);
 }
 
 // This should be a dynamic packet with x, y, z coords
-void player_pos_look(int clientSocket) {
+void player_pos_look(ClientSession *session) {
     Buffer player_poslook_packet;
     buffer_init(&player_poslook_packet, 512);
 
@@ -155,10 +155,10 @@ void player_pos_look(int clientSocket) {
     buffer_append(&player_poslook_packet, &tp_id, 1); // tp_id
 
     prepend_packet_length(&player_poslook_packet);
-    send(clientSocket, player_poslook_packet.data, player_poslook_packet.size, 0);
+    send(session->socket, player_poslook_packet.data, player_poslook_packet.size, 0);
     buffer_free(&player_poslook_packet);
 
-    send_stone_platform_chunk(clientSocket);
+    send_stone_platform_chunk(session);
 }
 
 void send_keep_alive(ClientSession *session, struct pollfd *fd) {
@@ -206,5 +206,19 @@ void handle_play_state(ClientSession *session, int packet_id, uint8_t *packet, i
             printf("RECEIVED PLAYER LOOK AND POS\n");
             break;
         }
+        case 0x03: {
+            parse_send_chat(session,packet);
+            printf("%s: Sent a message\n",session->username);
+            break;
+
+
+        }
     }
+}
+void parse_send_chat(ClientSession *session, uint8_t *packet){
+    printf(packet);
+
+
+
+
 }
