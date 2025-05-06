@@ -29,22 +29,31 @@ void handleNewConnection(int serverSocket, struct pollfd fds[], ClientSession se
     if (clientSocket == -1) return;
 
     if (*nfds < MAX_CLIENTS + 1) {
+        // Initialize the new session with the socket and state
+        sessions[*nfds - 1] = (ClientSession){
+            .socket = clientSocket, 
+            .state = STATE_HANDSHAKE,
+            .allSessions = sessions,  
+            .sessionCount = *nfds      
+        };
+
+        // Add the new session's socket to the pollfd array
         fds[*nfds].fd = clientSocket;
         fds[*nfds].events = POLLIN;
-        sessions[*nfds - 1] = (ClientSession){.socket = clientSocket, .state = STATE_HANDSHAKE};
-        (*nfds)++;
+
+        (*nfds)++;  // Increase the number of clients
     } else {
         printf("Server full. Rejecting connection.\n");
         close(clientSocket);
     }
 }
 
+
 void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
     // Read packet ID
     int offset = 0;
     int packetId = read_varint(packet, &offset);
 
-    //printf("[INFO] Processing packet, ID: %d, Length: %d\n", packetId, packetLength);
 
     // Process the packet based on the packet ID and session state
     switch (session->state) {
@@ -84,7 +93,7 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength) {
             // Handle play packets
             handle_play_state(session, packetId, packet, packetLength);
             break;
-
+            
         default:
             printf("[ERROR] Unknown state.\n");
             break;
@@ -99,13 +108,6 @@ int handleClientData(ClientSession *session) {
 
     session->bufferOffset += bytesRead;
 
-    // Debug: Show buffer contents
-    /*printf("[DEBUG] Received %d bytes, total buffer size: %d\n", bytesRead, session->bufferOffset);
-    printf("[DEBUG] Buffer contents: ");
-    for (int i = 0; i < session->bufferOffset; i++) {
-        printf("%02X ", session->buffer[i]);
-    }
-    printf("\n");*/
 
     while (session->bufferOffset > 0) {
         int offset = 0;
@@ -129,7 +131,7 @@ int handleClientData(ClientSession *session) {
         memcpy(packetBuffer, session->buffer + offset, packetLength);
 
         // Process the extracted packet
-        printf("[DEBUG] Processing packet at offset %d, length %d\n", offset, packetLength);
+        //printf("[DEBUG] Processing packet at offset %d, length %d\n", offset, packetLength);
         processPacket(session, packetBuffer, packetLength);
 
         int remainingBytes = session->bufferOffset - (offset + packetLength);

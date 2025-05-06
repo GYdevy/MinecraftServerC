@@ -10,3 +10,4 @@ install_manifest.txt
 .vscode/
 *.log
 /server
+players/

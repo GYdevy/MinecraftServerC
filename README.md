@@ -13,16 +13,17 @@ docker run -it -p 61243:61243 --name minecraftserverc minecraftserverc
 - Accepts connections from Minecraft clients.
 - Handles login, world initialization, and player spawning.
 - Processes player movement packets and maintains session state.
+- Handles chat messages between players.
 #### Built entirely from scratch:
 - No external game libraries; direct implementation of the Minecraft protocol
 - Uses low-level TCP sockets (POSIX) for network communication
 - Manual packet serialization and deserialization in compliance with the protocol specification
 
 ## TODO features
-- Player chat messages are not yet implemented.
 - Server doesn't handle player disconnections gracefully.
 - World saving is not persistent.
 - Multiple players can join but not see each other.
+
 
 
 

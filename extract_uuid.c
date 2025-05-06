@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "packet_utils.h"
+#include <stdint.h>
 #include "curl/curl.h"
 #define SERVER "https://api.mojang.com"
 #define PORT 443  //HTTPS PORT
@@ -39,12 +40,8 @@ char *get_uuid(const char *username) {
         // Check for errors
         if (res != CURLE_OK) {
             fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        } else {
-            // Print the server's response for debugging
-            printf("Response: %s\n", response);
-        }
+        } 
 
-        // Clean up the curl session
         curl_easy_cleanup(curl);
     }
 
@@ -64,6 +61,73 @@ char *get_uuid(const char *username) {
     curl_global_cleanup();
 
     return uuid;
+}
+char *get_skin_base64(const char *uuid){
+
+    char url[512];
+    char response[32767] = "";
+    snprintf(url, sizeof(url), "https://sessionserver.mojang.com/session/minecraft/profile/%s", uuid);
+    curl_global_init(CURL_GLOBAL_DEFAULT); // Initialize global curl environment
+    CURL *curl = curl_easy_init(); // Initialize a curl session
+
+    if (curl) {
+        // Set the URL
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+
+        // Set the write callback function to handle the response
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, response); // Pass the response buffer
+
+        // Perform the request
+        CURLcode res = curl_easy_perform(curl);
+        
+        // Check for errors
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        } 
+
+        curl_easy_cleanup(curl);
+    }
+    char *base64_skin = NULL;
+
+    const char *key = "\"value\"";
+    char *pos = strstr(response, key);
+    if (pos) {
+        // Move pointer to after "value":
+        pos += strlen(key);
+        
+        // Skip whitespace and colon
+        while (*pos && (*pos == ' ' || *pos == '\t' || *pos == '\n' || *pos == ':')) pos++;
+
+        // Skip opening quote
+        if (*pos == '"') pos++;
+        else {
+            fprintf(stderr, "No opening quote after value key\n");
+            return NULL;
+        }
+
+        // Find closing quote
+        char *end = pos;
+        while (*end && *end != '"') end++;
+
+        if (*end != '"') {
+            fprintf(stderr, "No closing quote for value string\n");
+            return NULL;
+        }
+
+        size_t length = end - pos;
+        base64_skin = malloc(length + 1);
+        if (base64_skin) {
+            strncpy(base64_skin, pos, length);
+            base64_skin[length] = '\0';  // Null-terminate
+        }
+    } else {
+        fprintf(stderr, "\"value\" key not found in response\n");
+    }
+
+    return base64_skin;
+
+
 }
 
 //format uuid form xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx to have the hyphens. this mc version wants it
@@ -95,4 +159,10 @@ char *get_formatted_uuid(const char *raw_uuid) {
     buffer_free(&buffer);
 
     return formatted_uuid;
+}
+void parse_uuid_bytes(const char *uuid_str, uint8_t uuid_bytes[16]) {
+    for (int i = 0; i < 16; i++) {
+        char byte_str[3] = { uuid_str[i * 2], uuid_str[i * 2 + 1], 0 }; // grab 2 hex chars
+        uuid_bytes[i] = (uint8_t) strtol(byte_str, NULL, 16);
+    }
 }

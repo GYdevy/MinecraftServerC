@@ -119,6 +119,7 @@ void buffer_append_be(Buffer *buffer, const void *value, size_t size) {
 }
 
 void write_varInt_buffer(Buffer *buffer, int value) {
+    printf("[DEBUG] Writing VarInt: %d\n", value);
     uint8_t byte;
     while (1) {
         byte = value & 0x7F;
