@@ -13,6 +13,6 @@ void prepend_packet_length(Buffer *buf);
 Player* find_player_in_file(const char* username);
 void fetch_player_into_session(ClientSession *session, Player *player);
 int generate_eid();
-int write_player_data_to_file(const char *username, const char *uuid, const char *skinUrl, int eid, double x, double y, double z);
+int save_player_to_file(ClientSession *session);
 int create_players_directory();
 #endif // LOGIN_H

@@ -35,4 +35,8 @@ void buffer_append_be(Buffer *buffer, const void *value, size_t size);
 
 void buffer_align(Buffer *buffer, size_t alignment);
 
+void swap_bytes(void *data, size_t size);
+
+double convert_double_little_endian_to_big_endian(uint8_t *buf);
+float convert_float_little_endian_to_big_endian(uint8_t *buf);
 #endif

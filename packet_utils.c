@@ -108,7 +108,6 @@ void buffer_append_be(Buffer *buffer, const void *value, size_t size) {
     uint8_t temp[8]; // Maximum size needed for double (8 bytes)
     memcpy(temp, value, size); // Copy raw bytes
 
-    // Reverse bytes if size > 1 (needed for big-endian conversion)
     for (size_t i = 0; i < size / 2; i++) {
         uint8_t swap = temp[i];
         temp[i] = temp[size - 1 - i];
@@ -160,4 +159,31 @@ uint64_t getCurrentTimeMillis() {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     return (uint64_t) (ts.tv_sec) * 1000 + (ts.tv_nsec / 1000000);
+}
+void swap_bytes(void *data, size_t size) {
+    uint8_t *bytes = (uint8_t *)data;
+    for (size_t i = 0; i < size / 2; ++i) {
+        uint8_t temp = bytes[i];
+        bytes[i] = bytes[size - i - 1];
+        bytes[size - i - 1] = temp;
+    }
+}
+
+// Convert from little-endian to big-endian for doubles
+double convert_double_little_endian_to_big_endian(uint8_t *buf) {
+
+    swap_bytes(buf, sizeof(double));
+    
+    double value;
+    memcpy(&value, buf, sizeof(double));
+    
+    return value;
+}
+float convert_float_little_endian_to_big_endian(uint8_t *buf) {
+    swap_bytes(buf, sizeof(float));
+
+    float value;
+    memcpy(&value, buf, sizeof(float));
+
+    return value;
 }

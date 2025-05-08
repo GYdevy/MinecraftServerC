@@ -14,11 +14,14 @@ typedef enum {
     STATE_PLAY
 } ConnectionState;
 typedef struct {
-    char uuid[37];         
-    char username[32];     
-    char skinUrl[256];     
-    double x, y, z;      
-    int eid;     
+    char uuid[37];
+    char username[32];
+    char skinUrl[256];
+    int eid;
+    double x, y, z;
+    float yaw, pitch;
+    uint8_t flags;        // Movement flags (X/Y/Z/Y_ROT/X_ROT)
+    int onGround;    // 0 - in air, 1 - on ground       
 } Player;
 typedef struct {
     struct ClientSession* allSessions;  // <-- pointer to the array

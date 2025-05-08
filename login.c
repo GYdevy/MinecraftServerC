@@ -59,7 +59,6 @@ void send_login_success(ClientSession *session, const char *uuid ,const char *fo
 int create_players_directory() {
     struct stat st = {0};
     if (stat(PLAYER_DIR, &st) == -1) {
-        // Directory doesn't exist, create it
         if (mkdir(PLAYER_DIR, 0755) == -1) {
             printf("[ERROR] Could not create 'players' directory.\n");
             return -1;
@@ -70,51 +69,48 @@ int create_players_directory() {
     return 0;
 }
 
-// Write player data to a text file for the player
-int write_player_data_to_file(const char *username, const char *uuid, const char *skinUrl, int eid, double x, double y, double z) {
-    // Define the path to the player's specific file
-    char file_path[512];
-    snprintf(file_path, sizeof(file_path), "%s/%s.txt", PLAYER_DIR, username);  // Changed to username.txt
+int save_player_to_file(ClientSession *session) {
+    char player_file_path[512];
+    snprintf(player_file_path, sizeof(player_file_path), "%s/%s.txt", PLAYER_DIR, session->player.username);
 
-    FILE *file = fopen(file_path, "w");
+    FILE *file = fopen(player_file_path, "w");
     if (!file) {
-        printf("[ERROR] Could not open file for player '%s'.\n", username);
+        perror("[ERROR] Could not open player file for writing");
         return -1;
     }
 
-    // Write player data to the file
-    fprintf(file, "UUID: %s\n", uuid);
-    fprintf(file, "Username: %s\n", username);
-    fprintf(file, "Skin URL: %s\n", skinUrl);
-    fprintf(file, "EID: %d\n", eid);
-    fprintf(file, "Position: %.3f, %.3f, %.3f\n", x, y, z);
+    fprintf(file, "UUID: %s\n", session->player.uuid);
+    fprintf(file, "Username: %s\n", session->player.username);
+    fprintf(file, "Skin URL: %s\n", session->player.skinUrl);
+    fprintf(file, "EID: %d\n", session->player.eid);
+    fprintf(file, "Position: %.3f, %.3f, %.3f\n", session->player.x, session->player.y, session->player.z);
+    fprintf(file, "Yaw: %.3f\n", session->player.yaw);
+    fprintf(file, "Pitch: %.3f\n", session->player.pitch);
+    fprintf(file, "Flags: 0x%02X\n", session->player.flags);
+    fprintf(file, "OnGround: %d\n", session->player.onGround);
 
     fclose(file);
-    printf("[INFO] Player data written to '%s'.\n", file_path);
     return 0;
 }
 
+
 int add_player_to_file(ClientSession *session, const char *uuid, const char *username, const char *skinUrl) {
-    // Ensure the "players" directory exists
     if (create_players_directory() != 0) {
         printf("[ERROR] Failed to create player directory.\n");
         return -1;
     }
 
-    // Define player file path
     char player_file_path[512];
     snprintf(player_file_path, sizeof(player_file_path), "%s/%s.txt", PLAYER_DIR, username);
 
-    // Try to open existing file
     FILE *player_file = fopen(player_file_path, "r");
     if (player_file) {
-        // Existing player → load data
         Player existing_player = {0};
         char line[1024];
         int fields = 0;
 
         while (fgets(line, sizeof(line), player_file)) {
-            line[strcspn(line, "\n")] = 0;  // Remove newline
+            line[strcspn(line, "\n")] = 0;
 
             if (sscanf(line, "UUID: %36s", existing_player.uuid) == 1) fields++;
             else if (sscanf(line, "Username: %31s", existing_player.username) == 1) fields++;
@@ -125,20 +121,24 @@ int add_player_to_file(ClientSession *session, const char *uuid, const char *use
             }
             else if (sscanf(line, "EID: %d", &existing_player.eid) == 1) fields++;
             else if (sscanf(line, "Position: %lf,%lf,%lf", &existing_player.x, &existing_player.y, &existing_player.z) == 3) fields++;
+            else if (sscanf(line, "Yaw: %f", &existing_player.yaw) == 1) fields++;
+            else if (sscanf(line, "Pitch: %f", &existing_player.pitch) == 1) fields++;
+            else if (sscanf(line, "Flags: 0x%02X", &existing_player.flags) == 1) fields++;
+            else if (sscanf(line, "OnGround: %d", &existing_player.onGround) == 1) fields++;
         }
         fclose(player_file);
 
-        if (fields == 5) {
+        if (fields == 9) {  // Updated for 9 fields now
             fetch_player_into_session(session, &existing_player);
             printf("[INFO] Loaded existing player '%s' into session.\n", existing_player.username);
             return 0;
         } else {
-            printf("[ERROR] Corrupted player file '%s'. Only %d/5 fields found.\n", username, fields);
+            printf("[ERROR] Corrupted player file '%s'. Only %d/9 fields found.\n", username, fields);
             return -1;
         }
     }
 
-    // No existing file → create new player
+    // New player creation
     printf("[INFO] Player file does not exist, creating new player '%s'.\n", username);
     printf("[INFO] GENERATING EID\n");
 
@@ -156,9 +156,12 @@ int add_player_to_file(ClientSession *session, const char *uuid, const char *use
     fprintf(player_file, "Skin URL: %s\n", skinUrl);
     fprintf(player_file, "EID: %d\n", eid);
     fprintf(player_file, "Position: %.3f, %.3f, %.3f\n", 5.0, 17.0, 5.0);
+    fprintf(player_file, "Yaw: 0.0\n");
+    fprintf(player_file, "Pitch: 0.0\n");
+    fprintf(player_file, "Flags: 0x00\n");
+    fprintf(player_file, "OnGround: 1\n");  // Default to onGround = 1
     fclose(player_file);
 
-    // Fill session
     strncpy(session->player.username, username, sizeof(session->player.username));
     session->player.username[sizeof(session->player.username) - 1] = '\0';
 
@@ -172,11 +175,14 @@ int add_player_to_file(ClientSession *session, const char *uuid, const char *use
     session->player.x = 5;
     session->player.y = 17;
     session->player.z = 5;
+    session->player.yaw = 0.0f;
+    session->player.pitch = 0.0f;
+    session->player.flags = 0x00;
+    session->player.onGround = 1;
 
     printf("[INFO] Added player '%s' to file.\n", username);
     return 1;  // New player created
 }
-
 
 
 
@@ -201,6 +207,9 @@ Player* find_player_in_file(const char* username) {
     char uuid[37], file_username[32], skinUrl[256];
     double x, y, z;
     int eid;
+    float yaw, pitch;
+    uint8_t flags;
+    int onGround;
 
     while (fgets(line, sizeof(line), file)) {
         line[strcspn(line, "\n")] = 0;
@@ -216,10 +225,17 @@ Player* find_player_in_file(const char* username) {
             sscanf(line + 5, "%d", &eid);  // Extract EID
         } else if (strncmp(line, "Position: ", 10) == 0) {
             sscanf(line + 10, "%lf,%lf,%lf", &x, &y, &z);  
+        } else if (strncmp(line, "Yaw: ", 5) == 0) {
+            sscanf(line + 5, "%f", &yaw);
+        } else if (strncmp(line, "Pitch: ", 7) == 0) {
+            sscanf(line + 7, "%f", &pitch);
+        } else if (strncmp(line, "Flags: ", 7) == 0) {
+            sscanf(line + 7, "%hhX", &flags);
+        } else if (strncmp(line, "OnGround: ", 10) == 0) {
+            sscanf(line + 10, "%d", &onGround);
         }
     }
 
-    // After reading the file, check if we have successfully found all necessary fields
     if (strlen(uuid) > 0 && strcmp(file_username, username) == 0) {
         strncpy(foundPlayer.uuid, uuid, sizeof(foundPlayer.uuid));
         strncpy(foundPlayer.username, file_username, sizeof(foundPlayer.username));
@@ -228,6 +244,10 @@ Player* find_player_in_file(const char* username) {
         foundPlayer.y = y;
         foundPlayer.z = z;
         foundPlayer.eid = eid;
+        foundPlayer.yaw = yaw;
+        foundPlayer.pitch = pitch;
+        foundPlayer.flags = flags;
+        foundPlayer.onGround = onGround;
 
         fclose(file);
         return &foundPlayer;  
@@ -236,19 +256,24 @@ Player* find_player_in_file(const char* username) {
     fclose(file);
     return NULL;  
 }
+
 void fetch_player_into_session(ClientSession *session, Player *player) {
     strncpy(session->player.username, player->username, sizeof(session->player.username));
-    session->player.username[sizeof(session->player.username)-1] = '\0';
+    session->player.username[sizeof(session->player.username) - 1] = '\0';
 
     strncpy(session->player.uuid, player->uuid, sizeof(session->player.uuid));
-    session->player.uuid[sizeof(session->player.uuid)-1] = '\0';
+    session->player.uuid[sizeof(session->player.uuid) - 1] = '\0';
 
     session->player.x = player->x;
     session->player.y = player->y;
     session->player.z = player->z;
     session->player.eid = player->eid;
-
+    session->player.yaw = player->yaw;
+    session->player.pitch = player->pitch;
+    session->player.flags = player->flags;
+    session->player.onGround = player->onGround;
 }
+
 
 
 unsigned char *create_login_response_data(const char *username, const char *uuid, int *total_length) {

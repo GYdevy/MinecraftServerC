@@ -5,6 +5,7 @@
 #include "server.h"
 #include "extract_uuid.h"
 #include <string.h>
+#include "movement.h"
 #include <unistd.h> // For sleep function in Linux
 
 #define HEIGHTMAP_SIZE 36
@@ -201,9 +202,11 @@ void player_pos_look(ClientSession *session)
     buffer_init(&player_poslook_packet, 512);
 
     uint8_t packet_id = 0x36;
-    double x = 5, y = 17, z = 5;
-    float yaw = 0;
-    float pitch = 0;
+    double x = session->player.x; 
+    double y = session->player.y;
+    double z = session->player.z;
+    float yaw = session->player.yaw;
+    float pitch = session->player.pitch;
     uint8_t flags = 0;
     int tp_id = 0x0a;
 
@@ -272,15 +275,40 @@ void handle_play_state(ClientSession *session, int packet_id, uint8_t *packet, i
         printf("KEEP ALIVE RECEIVED\n");
         break;
     }
-    case 0x22:
-    {
-        printf("RECEIVED PLAYER LOOK AND POS\n");
-        break;
-    }
     case 0x03:
     {
         printf("%s: Sent a message\n", session->username);
         handle_chat_packet(session, packet, packet_length);
+        break;
+    }
+    
+    case 0x22:
+    {
+        printf("BEACON?\n");
+        break;
+    }
+    //Player movement and position packets
+
+    case 0x11: {  //Player position
+        
+        uint8_t *current_packet = packet; 
+        handle_player_position(session,current_packet);
+        break;
+    }
+    case 0x12: {  //Player position and rotation
+        
+        uint8_t *current_packet = packet; 
+        handle_player_position_rotation(session,current_packet);
+        break;
+    }
+    case 0x13: {  //Player Rotation
+        uint8_t *current_packet = packet; 
+        handle_player_rotation(session,current_packet);
+        break;
+    }
+    case 0x14: {  //Player movement
+        uint8_t *current_packet = packet; 
+        handle_player_movement(session,current_packet);
         break;
     }
     }
