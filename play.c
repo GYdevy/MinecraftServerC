@@ -6,6 +6,7 @@
 #include "extract_uuid.h"
 #include <string.h>
 #include "movement.h"
+#include "play_helpers.h"
 #include <unistd.h> // For sleep function in Linux
 
 #define HEIGHTMAP_SIZE 36
@@ -22,7 +23,7 @@ void join_game(ClientSession *session)
     long hash = 1234567890;   // random number for hash
     uint8_t max = 5;          // ignored
     char ltype = 0;           // default
-    int viewD = 0x2;          // view distance
+    int viewD = 0x8;          // view distance
     bool debug = 0;           // Debug flag
     bool res = 1;             // Result flag
 
@@ -46,20 +47,35 @@ void join_game(ClientSession *session)
     //} else {
     //     printf("[ERROR] Failed to load player data.\n");
     // }
-    player_info_packet(session, session->allSessions);
+    on_player_join(session, session->allSessions);
+
     buffer_free(&join_packet);
     player_pos_look(session);
 }
-
-// Basic stone platform chunk packet.
-void send_stone_platform_chunk(ClientSession *session)
+void on_player_join(ClientSession *newSession, ClientSession *allSessions)
 {
 
+    newSession->state = STATE_PLAY;
+    player_info_packet(newSession, allSessions); // Add player to tab list
+    send_existing_players_to_newcomer(newSession, newSession->allSessions);
+
+    // Inform other players of the new player's spawn
+    for (int i = 0; i < newSession->sessionCount; i++)
+    {
+        ClientSession *other = &allSessions[i];
+        if (other != newSession && other->state == STATE_PLAY)
+        {
+            spawn_player_packet(other, newSession); // Show new player to others
+            spawn_player_packet(newSession, other); // Show others to new player
+        }
+    }
+}
+// Basic stone platform chunk packet.
+void send_stone_platform_chunk_at(ClientSession *session, int chunkX, int chunkZ)
+{
     Buffer chunkPacket;
     buffer_init(&chunkPacket, 4096);
 
-    int chunkX = 0;
-    int chunkZ = 0;
     bool full_chunk = 1;
     int bit_mask = 1;
 
@@ -67,8 +83,8 @@ void send_stone_platform_chunk(ClientSession *session)
     write_varInt_buffer(&chunkPacket, 0x22); // VarInt for packet ID 0x22
 
     // Chunk Coordinates
-    buffer_append(&chunkPacket, &chunkX, sizeof(int32_t));
-    buffer_append(&chunkPacket, &chunkZ, sizeof(int32_t));
+    buffer_append(&chunkPacket, &chunkX, sizeof(int32_t)); // Chunk X
+    buffer_append(&chunkPacket, &chunkZ, sizeof(int32_t)); // Chunk Z
 
     // Full Chunk
     write_varInt_buffer(&chunkPacket, full_chunk);
@@ -140,73 +156,44 @@ void send_stone_platform_chunk(ClientSession *session)
 
     prepend_packet_length(&chunkPacket);
 
+    // Send the chunk data to the player
     send(session->socket, chunkPacket.data, chunkPacket.size, 0);
+    buffer_free(&chunkPacket); // Free the chunk packet buffer
 }
-
-
-int load_player_from_file(const char *filename, const char *search_username, ClientSession *session)
+void send_3x3_chunks(ClientSession *session)
 {
-    FILE *file = fopen(filename, "r");
-    if (!file)
+    // Calculate the player's current chunk coordinates
+    int player_chunk_x = (int)(session->player.x / 16); // Minecraft chunks are 16x16 blocks
+    int player_chunk_z = (int)(session->player.z / 16);
+
+    // Send chunks in a 3x3 grid around the player
+    for (int dx = -1; dx <= 1; dx++)
     {
-        printf("[ERROR] Failed to open file %s.\n", filename);
-        return -1;
-    }
-    printf("USERNAME TO SEARCH: %s", search_username);
-    char line[1024];
-    while (fgets(line, sizeof(line), file))
-    {
-        char file_uuid[36], file_username[256], skinUrl[512];
-        float x, y, z;
-
-        int scanned = sscanf(line, "%35[^;];%255[^;];%f;%f;%f;%511[^\n]",
-                             file_uuid, file_username, &x, &y, &z, skinUrl);
-
-        if (scanned == 6)
+        for (int dz = -1; dz <= 1; dz++)
         {
-            if (strcmp(file_username, search_username) == 0)
-            {
-                strncpy(session->player.username, file_username, sizeof(session->player.username));
-                session->player.username[sizeof(session->player.username) - 1] = '\0';
+            int chunkX = player_chunk_x + dx; // X coordinate of chunk
+            int chunkZ = player_chunk_z + dz; // Z coordinate of chunk
 
-                strncpy(session->player.uuid, file_uuid, sizeof(session->player.uuid));
-                session->player.uuid[sizeof(session->player.uuid) - 1] = '\0';
-
-                session->player.x = x;
-                session->player.y = y;
-                session->player.z = z;
-
-                strncpy(session->player.skinUrl, skinUrl, sizeof(session->player.skinUrl));
-                session->player.skinUrl[sizeof(session->player.skinUrl) - 1] = '\0';
-
-                fclose(file);
-                printf("[INFO] Loaded player %s (UUID: %s)\n", session->player.username, session->player.uuid);
-                return 0;
-            }
-        }
-        else
-        {
-            printf("[WARN] Skipping malformed line: %s", line);
+            // Call your function to send a single chunk at (chunkX, chunkZ)
+            send_stone_platform_chunk_at(session, chunkX, chunkZ);
         }
     }
-
-    fclose(file);
-    printf("[ERROR] Player with username '%s' not found in file.\n", search_username);
-    return -1;
 }
 
-// This should be a dynamic packet with x, y, z coords
+// Now dynamic
 void player_pos_look(ClientSession *session)
 {
     Buffer player_poslook_packet;
     buffer_init(&player_poslook_packet, 512);
 
     uint8_t packet_id = 0x36;
-    double x = session->player.x; 
+    double x = session->player.x;
     double y = session->player.y;
     double z = session->player.z;
     float yaw = session->player.yaw;
     float pitch = session->player.pitch;
+    while (yaw < 0) yaw += 360.0f;
+    while (yaw >= 360.0f) yaw -= 360.0f;
     uint8_t flags = 0;
     int tp_id = 0x0a;
 
@@ -223,7 +210,7 @@ void player_pos_look(ClientSession *session)
     send(session->socket, player_poslook_packet.data, player_poslook_packet.size, 0);
     buffer_free(&player_poslook_packet);
 
-    send_stone_platform_chunk(session);
+    send_3x3_chunks(session);
 }
 
 void send_keep_alive(ClientSession *session, struct pollfd *fd)
@@ -281,34 +268,38 @@ void handle_play_state(ClientSession *session, int packet_id, uint8_t *packet, i
         handle_chat_packet(session, packet, packet_length);
         break;
     }
-    
+
     case 0x22:
     {
         printf("BEACON?\n");
         break;
     }
-    //Player movement and position packets
+        // Player movement and position packets
 
-    case 0x11: {  //Player position
-        
-        uint8_t *current_packet = packet; 
-        handle_player_position(session,current_packet);
+    case 0x11:
+    { // Player position
+
+        uint8_t *current_packet = packet;
+        handle_player_position(session, current_packet);
         break;
     }
-    case 0x12: {  //Player position and rotation
-        
-        uint8_t *current_packet = packet; 
-        handle_player_position_rotation(session,current_packet);
+    case 0x12:
+    { // Player position and rotation
+
+        uint8_t *current_packet = packet;
+        handle_player_position_rotation(session, current_packet);
         break;
     }
-    case 0x13: {  //Player Rotation
-        uint8_t *current_packet = packet; 
-        handle_player_rotation(session,current_packet);
+    case 0x13:
+    { // Player Rotation
+        uint8_t *current_packet = packet;
+        handle_player_rotation(session, current_packet);
         break;
     }
-    case 0x14: {  //Player movement
-        uint8_t *current_packet = packet; 
-        handle_player_movement(session,current_packet);
+    case 0x14:
+    { // Player movement
+        uint8_t *current_packet = packet;
+        handle_player_movement(session, current_packet);
         break;
     }
     }
@@ -393,13 +384,13 @@ char *extractMessageFromPacket(uint8_t *packet, int packetLength)
     return message;
 }
 
-
-
+// needs to have a filter for the actions or different functions for each action
 void player_info_packet(ClientSession *sourceSession, ClientSession *allSessions)
 {
-  
+
     Player *find_player = find_player_in_file(sourceSession->username);
-    if (!find_player) {
+    if (!find_player)
+    {
         printf("[ERROR] Player not found in file for '%s'.\n", sourceSession->player.username);
         return;
     }
@@ -408,10 +399,10 @@ void player_info_packet(ClientSession *sourceSession, ClientSession *allSessions
     buffer_init(&buffer, 512);
 
     uint8_t packet_id = 0x34;
-    uint8_t action = 0x00;         // Add Player
-    uint8_t num_of_players = 0x01; 
+    uint8_t action = 0x00; // Add Player
+    uint8_t num_of_players = 0x01;
     uint8_t num_of_properties = 0x01;
-    uint8_t gamemode = 0x00; // Survival, hardcoded
+    uint8_t gamemode = 0x01; // Creative, hardcoded
     uint8_t is_signed = 0x00;
     uint8_t has_display_name = 0x00;
     int ping = 0; // Should be something measured, for now hardcoded
@@ -447,22 +438,31 @@ void player_info_packet(ClientSession *sourceSession, ClientSession *allSessions
     prepend_packet_length(&buffer);
 
     // Ensure session count is valid
-    if (sourceSession->sessionCount <= 0) {
+    if (sourceSession->sessionCount <= 0)
+    {
         printf("[WARNING] No sessions to send the packet to.\n");
         buffer_free(&buffer);
         return;
     }
+    int sessionCount = sourceSession->sessionCount;
+    if (allSessions == &sourceSession[0])
+    {
 
+        sessionCount = 1;
+    }
     // Loop through sessions and send the packet
     printf("[DEBUG] Looping through %d sessions.\n", sourceSession->sessionCount);
-    for (int i = 0; i < sourceSession->sessionCount; i++) {
+    for (int i = 0; i < sourceSession->sessionCount; i++)
+    {
         ClientSession *target = &allSessions[i];
-        if (!target) {
+        if (!target)
+        {
             printf("[WARNING] target session %d is NULL.\n", i);
             continue;
         }
 
-        if (target->socket == -1) {
+        if (target->socket == -1)
+        {
             printf("[DEBUG] Skipping session %d (socket -1).\n", i);
             continue;
         }
@@ -472,9 +472,72 @@ void player_info_packet(ClientSession *sourceSession, ClientSession *allSessions
         sendPacket(target);
     }
 
-    // Free buffer
-    printf("[DEBUG] Freeing buffer.\n");
     buffer_free(&buffer);
-    printf("[DEBUG] Exiting player_info_packet.\n");
+}
+void send_existing_players_to_newcomer(ClientSession *newSession, ClientSession *allSessions)
+{
+    for (int i = 0; i < newSession->sessionCount; i++)
+    {
+        ClientSession *other = &allSessions[i];
+        if (other == newSession || other->socket == -1 || other->state != STATE_PLAY)
+            continue;
+
+        // This sends `other`'s info to the newcomer
+        player_info_packet(other, (ClientSession[]){*newSession});
+    }
 }
 
+void spawn_player_packet(ClientSession *sourceSession, ClientSession *spawn_session)
+{
+    if (sourceSession->state != STATE_PLAY)
+    {
+        printf("[WARN] Tried to send spawn packet to player not in play state\n");
+        return;
+    }
+
+    Buffer buffer;
+    buffer_init(&buffer, 256);
+
+    uint8_t packet_id = 0x05;
+    uint8_t uuid_bytes[16];
+    parse_uuid_bytes(spawn_session->player.uuid, uuid_bytes);
+
+    uint8_t yaw_byte = (uint8_t)((spawn_session->player.yaw / 360.0f) * 256.0f);
+    uint8_t pitch_byte = (uint8_t)((spawn_session->player.pitch / 360.0f) * 256.0f);
+
+    write_varInt_buffer(&buffer, packet_id); // Packet ID as VarInt
+    write_varInt_buffer(&buffer, spawn_session->player.eid);
+    buffer_append(&buffer, uuid_bytes, 16);
+
+    write_double_be(&buffer, spawn_session->player.x);
+    write_double_be(&buffer, spawn_session->player.y);
+    write_double_be(&buffer, spawn_session->player.z);
+
+    buffer_append(&buffer, &yaw_byte, sizeof(uint8_t));
+    buffer_append(&buffer, &pitch_byte, sizeof(uint8_t));
+
+    prepend_packet_length(&buffer);
+    buffer_to_sendbuffer(sourceSession, &buffer);
+    sendPacket(sourceSession);
+    buffer_free(&buffer);
+}
+void update_game_tick(ClientSession *sessions, int sessionCount)
+{
+    for (int i = 0; i < sessionCount; i++)
+    {
+        ClientSession *source = &sessions[i];
+        if (source->socket == -1 || source->state != STATE_PLAY)
+            continue;
+
+        for (int j = 0; j < sessionCount; j++)
+        {
+            if (i == j)
+                continue; // skip sending to self
+
+            ClientSession *target = &sessions[j];
+            if (target->socket == -1 || target->state != STATE_PLAY)
+                continue;
+            broadcast_movement(source, target);
+        }
+    }
+}

@@ -18,13 +18,17 @@ typedef struct {
     char username[32];
     char skinUrl[256];
     int eid;
-    double x, y, z;
-    float yaw, pitch;
+    double x, y, z; //current
+    float yaw, pitch; //current
+    double lastX, lastY, lastZ;  // previous position
+    float lastYaw, lastPitch;    // previous rotation
+
     uint8_t flags;        // Movement flags (X/Y/Z/Y_ROT/X_ROT)
+    int lastOnGround;
     int onGround;    // 0 - in air, 1 - on ground       
 } Player;
 typedef struct {
-    struct ClientSession* allSessions;  // <-- pointer to the array
+    struct ClientSession* allSessions;  
     int sessionCount;  
 
     int socket;  
@@ -39,6 +43,9 @@ typedef struct {
 
     Player player;
     char username[32]; //storing username here since this struct is passed around almost all functions.
+
+    char knownPlayers[MAX_CLIENTS][16];
+    int knownCount;
 } ClientSession;
 
 

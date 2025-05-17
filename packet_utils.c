@@ -118,7 +118,6 @@ void buffer_append_be(Buffer *buffer, const void *value, size_t size) {
 }
 
 void write_varInt_buffer(Buffer *buffer, int value) {
-    printf("[DEBUG] Writing VarInt: %d\n", value);
     uint8_t byte;
     while (1) {
         byte = value & 0x7F;
@@ -186,4 +185,16 @@ float convert_float_little_endian_to_big_endian(uint8_t *buf) {
     memcpy(&value, buf, sizeof(float));
 
     return value;
+}
+void write_double_be(Buffer *buffer, double value) {
+    union {
+        double d;
+        uint8_t bytes[8];
+    } u;
+    u.d = value;
+
+    // Write in big-endian order
+    for (int i = 7; i >= 0; i--) {
+        buffer_append(buffer, &u.bytes[i], 1);
+    }
 }

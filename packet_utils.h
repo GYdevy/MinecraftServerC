@@ -39,4 +39,5 @@ void swap_bytes(void *data, size_t size);
 
 double convert_double_little_endian_to_big_endian(uint8_t *buf);
 float convert_float_little_endian_to_big_endian(uint8_t *buf);
+void write_double_be(Buffer *buffer, double value);
 #endif

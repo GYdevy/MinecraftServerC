@@ -356,5 +356,5 @@ void prepend_packet_length(Buffer *buf) {
 
 
 int generate_eid() {
-    return (int)((uint32_t)rand() << 16 | rand());
+    return ((int)((uint32_t)rand() << 16 | rand())) & 0x7FFFFFFF;
 }

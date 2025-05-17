@@ -143,7 +143,6 @@ void build_send_status_response(int clientSocket)
     if (poll_result > 0 && (pfd.revents & POLLOUT))
     {
         send(clientSocket, (char *)buffer.data, buffer.size, 0);
-        printf("[INFO] Sent status response (%d bytes)\n", buffer.size);
     }
     else
     {

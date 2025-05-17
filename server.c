@@ -217,9 +217,12 @@ void runServerLoop(int serverSocket)
         uint64_t now = getCurrentTimeMillis();
         while (now - lastTickTime >= TICK_INTERVAL)
         {
-            for (int i = 1; i < nfds; i++)
+           
+                update_game_tick(sessions, nfds - 1);
+
+            for (int i = 0; i < nfds - 1; i++)
             {
-                // update_game_tick();
+                is_player_in_view(&sessions[i], sessions);
             }
             lastTickTime += TICK_INTERVAL;
         }
@@ -241,6 +244,7 @@ void runServerLoop(int serverSocket)
             }
             lastSaveTime = now;
         }
+        
         if (fds[0].revents & POLLIN)
         {
             handleNewConnection(serverSocket, fds, sessions, &nfds);
