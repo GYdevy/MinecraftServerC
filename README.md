@@ -22,7 +22,7 @@ docker run -it -p 61243:61243 --name minecraftserverc minecraftserverc
 ## TODO features
 - Server doesn't handle player disconnections gracefully.
 - World saving is not persistent.
-- Multiple players can join but not see each other.
+
 
 
 
