@@ -198,3 +198,6 @@ void write_double_be(Buffer *buffer, double value) {
         buffer_append(buffer, &u.bytes[i], 1);
     }
 }
+convert_short_little_endian_to_big_endian(uint16_t value) {
+    return (uint16_t)(((value >> 8) & 0xFF) | ((value & 0xFF) << 8));
+}

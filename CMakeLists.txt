@@ -16,6 +16,7 @@ add_executable(server
     ${CMAKE_SOURCE_DIR}/server.c
     ${CMAKE_SOURCE_DIR}/movement.c
     ${CMAKE_SOURCE_DIR}/play_helpers.c
+    ${CMAKE_SOURCE_DIR}/chat.c
 )
 
 # Include Externals/libnbt directory for headers

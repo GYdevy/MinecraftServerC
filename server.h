@@ -6,7 +6,8 @@
 
 #define BUFFER_SIZE 16384
 #define MAX_CLIENTS 5
-
+#define STATE_NONE -1
+extern int sessionCount;
 typedef enum {
     STATE_HANDSHAKE,
     STATE_STATUS,
@@ -27,7 +28,7 @@ typedef struct {
     int lastOnGround;
     int onGround;    // 0 - in air, 1 - on ground       
 } Player;
-typedef struct {
+typedef struct ClientSession{
     struct ClientSession* allSessions;  
     int sessionCount;  
 
@@ -52,8 +53,8 @@ typedef struct {
 
 int initializeServer();
 void runServerLoop(int serverSocket);  
-int handleClientData(ClientSession sessions[]);
-void processPacket(ClientSession *session, uint8_t *packet, int packetLength);
+int handleClientData(ClientSession *session,ClientSession sessions[]);
+void processPacket(ClientSession *session,ClientSession sessions[] ,uint8_t *packet, int packetLength);
 void sendPacket(ClientSession *session);
 
 #endif  // SERVER_H

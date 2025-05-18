@@ -11,12 +11,12 @@
 #include "packet_utils.h"
 
 
-int parsePacket(int clientSocket);
 
-void handle_ping_pong(int clientSocket);
+
+void handle_ping_pong(ClientSession *session);
 
 void handshake(ClientSession *session, uint8_t *data, int length);
 
-void build_send_status_response(int clientSocket);
+void build_send_status_response(ClientSession *session);
 
 #endif // HANDSHAKE_H

@@ -12,7 +12,8 @@ SRC = \
     play.c \
     server.c \
     movement.c \
-    play_helpers.c
+    play_helpers.c \ 
+    chat.c
 
 OBJ = $(SRC:.c=.o)
 

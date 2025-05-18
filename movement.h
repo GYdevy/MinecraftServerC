@@ -13,4 +13,5 @@ void send_entity_rotation_packet(ClientSession *source, ClientSession *target);
 void send_entity_position_rotation_packet(ClientSession *source, ClientSession *target, short deltaX, short deltaY, short deltaZ);
 void send_entity_movement(ClientSession *source, ClientSession *target);
 void send_entity_head_rotation_packet(ClientSession *source, ClientSession *target, float yaw_degrees);
+void send_player_arm_swing(ClientSession *session, ClientSession sessions[]);
 #endif //MOVEMENT_H

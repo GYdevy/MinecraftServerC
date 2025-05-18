@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdint.h>
+#include "chat.h"
 #include "login.h"
 #include "play.h"
 #include <unistd.h> // For close()
@@ -13,20 +14,28 @@
 #define TIMEOUT 100 // Poll indefinitely
 #define KEEP_ALIVE_INTERVAL 15000
 #define TICK_INTERVAL 50
-#define SAVE_INTERVAL 5000
+#define SAVE_INTERVAL 3000
+int sessionCount = 0;
 
 void removeClient(struct pollfd fds[], ClientSession sessions[], int *nfds, int index)
 {
     printf("[INFO] Removing client %d\n", fds[index].fd);
-    close(fds[index].fd);
+    
 
+    close(fds[index].fd);
+    if(sessions[index - 1].state == STATE_PLAY){
+    on_player_disconnect(&sessions[index - 1], sessions);    
+    printf("%s has left the game.\n",sessions[index - 1].player.username);
+    }
     if (index < *nfds - 1)
     {
         fds[index] = fds[*nfds - 1];
         sessions[index - 1] = sessions[*nfds - 2];
     }
+    sessionCount--;
     (*nfds)--;
 }
+
 
 void handleNewConnection(int serverSocket, struct pollfd fds[], ClientSession sessions[], int *nfds)
 {
@@ -41,13 +50,14 @@ void handleNewConnection(int serverSocket, struct pollfd fds[], ClientSession se
             .socket = clientSocket,
             .state = STATE_HANDSHAKE,
             .allSessions = sessions,
-            .sessionCount = *nfds};
+            .sessionCount = sessionCount + 1};
 
         // Add the new session's socket to the pollfd array
         fds[*nfds].fd = clientSocket;
         fds[*nfds].events = POLLIN;
 
         (*nfds)++; // Increase the number of clients
+        sessionCount++;
     }
     else
     {
@@ -56,7 +66,7 @@ void handleNewConnection(int serverSocket, struct pollfd fds[], ClientSession se
     }
 }
 
-void processPacket(ClientSession *session, uint8_t *packet, int packetLength)
+void processPacket(ClientSession *session,ClientSession sessions[] ,uint8_t *packet, int packetLength)
 {
     // Read packet ID
     int offset = 0;
@@ -68,7 +78,7 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength)
     case STATE_HANDSHAKE:
         if (packetId == 0x00)
         {
-            printf("[INFO] Handshake packet received.\n");
+
             handshake(session, packet, packetLength);
         }
         else
@@ -81,9 +91,8 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength)
         // Handle status packets
         if (packetId == 0x00)
         {
-            build_send_status_response(session->socket);
-            // Handle ping-pong logic, if applicable
-            handle_ping_pong(session->socket);
+            build_send_status_response(session);
+            handle_ping_pong(session);
             session->shouldClose = 1;
         }
         else
@@ -108,7 +117,7 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength)
 
     case STATE_PLAY:
         // Handle play packets
-        handle_play_state(session, packetId, packet, packetLength);
+        handle_play_state(session,sessions, packetId, packet, packetLength);
         break;
 
     default:
@@ -117,7 +126,7 @@ void processPacket(ClientSession *session, uint8_t *packet, int packetLength)
     }
 }
 
-int handleClientData(ClientSession *session)
+int handleClientData(ClientSession *session,ClientSession sessions[])
 {
     int bytesRead = recv(session->socket, (char *)(session->buffer + session->bufferOffset),
                          BUFFER_SIZE - session->bufferOffset, 0);
@@ -152,8 +161,7 @@ int handleClientData(ClientSession *session)
         memcpy(packetBuffer, session->buffer + offset, packetLength);
 
         // Process the extracted packet
-        // printf("[DEBUG] Processing packet at offset %d, length %d\n", offset, packetLength);
-        processPacket(session, packetBuffer, packetLength);
+        processPacket(session,sessions, packetBuffer, packetLength);
 
         int remainingBytes = session->bufferOffset - (offset + packetLength);
         if (remainingBytes > 0)
@@ -182,7 +190,7 @@ void handleClientCommunication(struct pollfd fds[], ClientSession sessions[], in
         // Handle incoming data (POLLIN)
         if (fds[i].revents & POLLIN)
         {
-            if (handleClientData(session))
+            if (handleClientData(session,sessions))
             {
                 removeClient(fds, sessions, nfds, i);
                 i--;
@@ -239,7 +247,7 @@ void runServerLoop(int serverSocket)
         {
             for (int i = 1; i < nfds; i++)
             {
-                printf("Saving players\n");
+                //printf("Saving players\n");
                 save_player_to_file(&sessions[i - 1]);
             }
             lastSaveTime = now;

@@ -20,8 +20,8 @@ docker run -it -p 61243:61243 --name minecraftserverc minecraftserverc
 - Manual packet serialization and deserialization in compliance with the protocol specification
 
 ## TODO features
-- Server doesn't handle player disconnections gracefully.
 - World saving is not persistent.
+- Generate world.
 
 
 
