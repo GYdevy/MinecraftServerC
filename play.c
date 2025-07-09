@@ -17,7 +17,7 @@ void join_game(ClientSession *session)
     Buffer join_packet;
     buffer_init(&join_packet, 256);
 
-    uint8_t packet_id = 0x26; // Packet ID
+    uint8_t packet_id = PLAY_CLIENTBOUND_JOIN_GAME_PACKET; // Packet ID
     int ent_id = 214;         // random number
     uint8_t gamemode = 1;     // creative
     int dim = 0;              // overworld
@@ -87,7 +87,7 @@ void destroy_disconnect_player(ClientSession *session, ClientSession *allSession
 
     Buffer buf;
     buffer_init(&buf, 64);
-    int packet_id = 0x38;
+    int packet_id = PLAY_CLIENTBOUND_DESTROY_ENTITIES;
     uint8_t count = 0x01;
     write_varInt_buffer(&buf, packet_id);
     buffer_append(&buf, &count, sizeof(count));
@@ -117,7 +117,7 @@ void send_stone_platform_chunk_at(ClientSession *session, int chunkX, int chunkZ
     int bit_mask = 1;
 
     // Packet ID
-    write_varInt_buffer(&chunkPacket, 0x22); // VarInt for packet ID 0x22
+    write_varInt_buffer(&chunkPacket, PLAY_CLIENTBOUND_CHUNK_DATA_PACKET); 
 
     // Chunk Coordinates
     buffer_append(&chunkPacket, &chunkX, sizeof(int32_t)); // Chunk X
@@ -223,7 +223,7 @@ void player_pos_look(ClientSession *session)
     Buffer player_poslook_packet;
     buffer_init(&player_poslook_packet, 512);
 
-    uint8_t packet_id = 0x36;
+    uint8_t packet_id = PLAY_CLIENTBOUND_PLAYER_POSITION_LOOK_PACKET;
     double x = session->player.x;
     double y = session->player.y;
     double z = session->player.z;
@@ -258,7 +258,7 @@ void send_keep_alive(ClientSession *session, struct pollfd *fd)
         return; // Invalid socket
     Buffer keepalive_packet;
     buffer_init(&keepalive_packet, 64);
-    uint8_t packet_id = 0x21;
+    uint8_t packet_id = PLAY_CLIENTBOUND_KEEP_ALIVE_PACKET;
 
     buffer_append(&keepalive_packet, &packet_id, 1);
     uint64_t keepAliveID = getCurrentTimeMillis(); // Generate keep-alive ID
@@ -281,7 +281,7 @@ void handle_play_state(ClientSession *session, ClientSession sessions[], int pac
 {
     switch (packet_id)
     {
-    case 0x2A:
+    case PLAY_SERVERBOUND_ANIMATION_PACKET:
     {
         send_player_arm_swing(session, sessions);
 
@@ -302,12 +302,12 @@ void handle_play_state(ClientSession *session, ClientSession sessions[], int pac
         // printf("RECEIVED CLIENT TELEPORT CONFIRM\n");
         break;
     }
-    case 0x0F:
+    case PLAY_SERVERBOUND_KEEP_ALIVE_PACKET:
     {
         // printf("KEEP ALIVE RECEIVED\n");
         break;
     }
-    case 0x03:
+    case PLAY_SERVERBOUND_CHAT_MESSAGE_PACKET:
     {
 
         handle_chat_packet(session, packet, packet_length);
@@ -321,27 +321,27 @@ void handle_play_state(ClientSession *session, ClientSession sessions[], int pac
     }
         // Player movement and position packets
 
-    case 0x11:
+    case PLAY_SERVERBOUND_PLAYER_POSITION_PACKET:
     { // Player position
 
         uint8_t *current_packet = packet;
         handle_player_position(session, current_packet);
         break;
     }
-    case 0x12:
+    case PLAY_SERVERBOUND_PLAYER_POSITION_ROTATION_PACKET:
     { // Player position and rotation
 
         uint8_t *current_packet = packet;
         handle_player_position_rotation(session, current_packet);
         break;
     }
-    case 0x13:
+    case PLAY_SERVERBOUND_PLAYER_ROTATION_PACKET:
     { // Player Rotation
         uint8_t *current_packet = packet;
         handle_player_rotation(session, current_packet);
         break;
     }
-    case 0x14:
+    case PLAY_SERVERBOUND_PLAYER_MOVEMENT_PACKET:
     { // Player movement
         uint8_t *current_packet = packet;
         handle_player_movement(session, current_packet);
@@ -364,7 +364,7 @@ void player_info_packet_join(ClientSession *sourceSession, ClientSession *allSes
     Buffer buffer;
     buffer_init(&buffer, 512);
 
-    uint8_t packet_id = 0x34;
+    uint8_t packet_id = PLAY_CLIENTBOUND_PLAYER_INFO_PACKET;
     uint8_t action = 0x00; // Add Player
     uint8_t num_of_players = 0x01;
     uint8_t num_of_properties = 0x01;
@@ -454,7 +454,7 @@ void player_info_packet_disconnect(ClientSession *sourceSession, ClientSession *
     Buffer buffer;
     buffer_init(&buffer, 512);
 
-    uint8_t packet_id = 0x34;
+    uint8_t packet_id = PLAY_CLIENTBOUND_PLAYER_INFO_PACKET;
     uint8_t action = 0x04; // remove Player
     uint8_t num_of_players = 0x01;
 
@@ -550,7 +550,7 @@ void spawn_player_packet(ClientSession *sourceSession, ClientSession *spawn_sess
     Buffer buffer;
     buffer_init(&buffer, 256);
 
-    uint8_t packet_id = 0x05;
+    uint8_t packet_id = PLAY_CLIENTBOUND_SPAWN_PLAYER_PACKET;
     uint8_t uuid_bytes[16];
     parse_uuid_bytes(spawn_session->player.uuid, uuid_bytes);
 

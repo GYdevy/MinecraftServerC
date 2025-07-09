@@ -52,7 +52,7 @@ void handle_ping_pong(ClientSession *session)
         Buffer buffer_ping_packet;
         buffer_init(&buffer_ping_packet, 11);
 
-        uint8_t length_and_id[] = {0x09, 0x01};
+        uint8_t length_and_id[] = {0x09, STATUS_CLIENTBOUND_PONG_PACKET};
         buffer_append(&buffer_ping_packet, length_and_id, 2);
         unsigned char ping_content[8];
         memcpy(ping_content, ping_packet + 4, 8);
@@ -95,7 +95,7 @@ void build_send_status_response(ClientSession *session)
     write_varInt_buffer(&total_length_buffer, total_packet_size);
 
     buffer_append(&buffer, total_length_buffer.data, total_length_buffer.size);
-    buffer_append(&buffer, (uint8_t[]){0x00}, 1); // Packet ID for Status Response
+    buffer_append(&buffer, (uint8_t[]){STATUS_CLIENTBOUND_RESPONSE_PACKET}, 1); // Packet ID for Status Response
     buffer_append(&buffer, json_length_buffer.data, json_length_buffer.size);
     buffer_append(&buffer, json, json_length);
     // Free length buffers

@@ -1,6 +1,7 @@
 #include "server.h"
 #include "packet_utils.h"
 #include "chat.h"
+#include "packet_ids.h"
 
 
 void send_player_disconnected(ClientSession *session, ClientSession sessions[])
@@ -21,7 +22,7 @@ void send_player_disconnected(ClientSession *session, ClientSession sessions[])
         Buffer buffer_chat_packet;
         buffer_init(&buffer_chat_packet, 256);
 
-        uint8_t packet_id = 0x0F; // chat message
+        uint8_t packet_id = PLAY_CLIENTBOUND_CHAT_MESSAGE_PACKET; // chat message
         buffer_append(&buffer_chat_packet, &packet_id, sizeof(packet_id));
 
         write_varInt_buffer(&buffer_chat_packet, strlen(jsonStr));
@@ -73,7 +74,7 @@ void broadcastChatMessage(ClientSession *sender, ClientSession sessions[], int s
         if (target->socket != -1)
         {
             Buffer buffer_chat_packet;
-            uint8_t packet_id = 0x0F; // clientbound chat message
+            uint8_t packet_id = PLAY_CLIENTBOUND_CHAT_MESSAGE_PACKET; // clientbound chat message
             buffer_init(&buffer_chat_packet, 256);
 
             int messageLength = strlen(message);
@@ -137,7 +138,7 @@ void send_player_joined_message(ClientSession *newSession, ClientSession *allSes
             continue;
 
         Buffer buffer_chat_packet;
-        uint8_t packet_id = 0x0F; // Clientbound Chat Message
+        uint8_t packet_id = PLAY_CLIENTBOUND_CHAT_MESSAGE_PACKET; // Clientbound Chat Message
         buffer_init(&buffer_chat_packet, 256);
 
         write_varInt_buffer(&buffer_chat_packet, packet_id);

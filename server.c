@@ -76,7 +76,7 @@ void processPacket(ClientSession *session,ClientSession sessions[] ,uint8_t *pac
     switch (session->state)
     {
     case STATE_HANDSHAKE:
-        if (packetId == 0x00)
+        if (packetId == HANDSHAKE_SERVER_BOUND_PACKET)
         {
 
             handshake(session, packet, packetLength);
@@ -89,7 +89,7 @@ void processPacket(ClientSession *session,ClientSession sessions[] ,uint8_t *pac
 
     case STATE_STATUS:
         // Handle status packets
-        if (packetId == 0x00)
+        if (packetId == STATUS_SERVERBOUND_REQUEST_PACKET)
         {
             build_send_status_response(session);
             handle_ping_pong(session);
@@ -103,7 +103,7 @@ void processPacket(ClientSession *session,ClientSession sessions[] ,uint8_t *pac
 
     case STATE_LOGIN:
         // Handle login packets
-        if (packetId == 0x00)
+        if (packetId == LOGIN_SERVERBOUND_LOGIN_START_PACKET)
         {
             printf("[INFO] Login packet received.\n");
             handle_login(session, packet);

@@ -32,7 +32,7 @@ void send_login_success(ClientSession *session, const char *uuid ,const char *fo
     Buffer response;
     buffer_init(&response, 64);
 
-    uint8_t packet_id = 0x02;
+    uint8_t packet_id = LOGIN_CLIENTBOUND_LOGIN_SUCCESS_PACKET;
     write_varInt_buffer(&response, packet_id);
 
     size_t uuid_len = strlen(formatted_uuid);
